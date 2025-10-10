@@ -1,4 +1,90 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Print Styles */
+@media print {
+
+  /* Hide everything except the bill content */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the bill content */
+  .bill-content,
+  .bill-content * {
+    visibility: visible;
+  }
+
+  /* Position the bill content properly */
+  .bill-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Ensure proper page breaks and sizing */
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+
+  /* Hide action buttons, navigation, Clerk elements */
+  .no-print,
+  .clerk-user-button,
+  [class*="clerk"],
+  nav,
+  header,
+  footer,
+  button {
+    display: none !important;
+  }
+
+  /* Ensure bill fits on one page */
+  .bill-content {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Improve text readability */
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.4;
+    color: #000 !important;
+    background: white !important;
+  }
+
+  /* Remove backgrounds and shadows for printing */
+  .bg-amber-100,
+  .bg-amber-50,
+  .bg-slate-200 {
+    background: transparent !important;
+  }
+
+  .shadow-lg,
+  .shadow-md {
+    box-shadow: none !important;
+  }
+
+  /* Ensure borders print properly */
+  .border,
+  .border-b {
+    border-color: #000 !important;
+  }
+
+  /* Force black text for printing */
+  .text-gray-900,
+  .text-amber-900,
+  .text-amber-700 {
+    color: #000 !important;
+  }
+}
 
 :root {
   --background: #ffffff;
