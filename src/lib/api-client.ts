@@ -5,11 +5,14 @@ import type {
   ApiResponse
 } from '@/types/api'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+// Use environment variable for API base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || ''
 
 export const apiClient = {
   async fetchApi(endpoint: string, token?: string, options: RequestInit = {}) {
-    const url = `${API_BASE_URL}/api${endpoint}`
+    // Use relative URL in production, absolute in development
+    const baseUrl = process.env.NODE_ENV === 'production' ? '' : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+    const url = `${baseUrl}/api${endpoint}`
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -76,7 +79,7 @@ export const apiClient = {
   },
 
   async deleteBill(id: string, token?: string) {
-    return this.fetchApi(`/bills/${id}?id=${id}`, token, {
+    return this.fetchApi(`/bills/${id}`, token, {
       method: 'DELETE',
     })
   },
@@ -105,7 +108,7 @@ export const apiClient = {
   },
 
   async deleteAddress(id: string, token?: string) {
-    return this.fetchApi(`/addresses/${id}?id=${id}`, token, {
+    return this.fetchApi(`/addresses/${id}`, token, {
       method: 'DELETE',
     })
   },
