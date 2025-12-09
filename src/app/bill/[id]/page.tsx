@@ -129,8 +129,6 @@ export default function BillView() {
       return tens[Math.floor(n / 10)] + (n % 10 > 0 ? ' ' + units[n % 10] : '')
     }
 
-    // Split into integer (Rupees) and fractional (Paise) parts
-    // We strictly use toFixed(2) to handle cases like 15.5 -> 15.50 -> 50 paise
     const amountStr = num.toFixed(2)
     const [rupeesStr, paiseStr] = amountStr.split('.')
 
@@ -215,13 +213,46 @@ export default function BillView() {
     <div className="min-h-screen bg-slate-100 print:bg-white">
       <style jsx global>{`
         @media print {
-          @page { margin: 8mm; size: A4; }
-          body { margin: 0; padding: 0; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print { display: none !important; }
-          .bill-content { box-shadow: none !important; border: 2px solid #000 !important; margin: 0 !important; padding: 12px !important; max-width: none !important; background: white !important; font-size: 12px !important; line-height: 1.1 !important; border-collapse: collapse !important; }
-          .print-small { font-size: 11px !important; }
-          .addresses-container { border: 1px solid #000 !important; page-break-inside: avoid !important; }
-          .address-divider { border-right: 1px solid #000 !important; }
+          @page {
+            margin: 4mm; /* Reduced margin to fit content */
+            size: A4;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .bill-content {
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+            margin: 0 !important;
+            padding: 4px !important; /* Very small padding */
+            max-width: none !important;
+            background: white !important;
+            font-size: 10px !important; /* Smaller font for print */
+            line-height: 1.1 !important;
+            border-collapse: collapse !important;
+          }
+          .print-small {
+            font-size: 9px !important;
+          }
+          .addresses-container {
+            border: 1px solid #000 !important;
+            page-break-inside: avoid !important;
+          }
+          .address-divider {
+            border-right: 1px solid #000 !important;
+          }
+          /* Ensure headers are small and tight */
+          h1, h2, h3, p, div {
+             margin-bottom: 0px !important;
+             padding-bottom: 0px !important;
+          }
         }
       `}</style>
 
@@ -238,14 +269,14 @@ export default function BillView() {
           </button>
         </div>
 
-        <div id="bill-content" className="bill-content bg-white shadow-xl mx-auto max-w-6xl p-6 border-2 border-gray-800 print:shadow-none print:max-w-none print:p-3">
-          <p className="tax-invoice text-center font-bold text-lg mb-4 text-black print:text-sm print:mb-2 border-b-2 border-amber-600 pb-2">TAX INVOICE</p>
+        <div id="bill-content" className="bill-content bg-white shadow-xl mx-auto max-w-6xl p-6 border-2 border-gray-800 print:shadow-none print:max-w-none print:p-1">
+          <p className="tax-invoice text-center font-bold text-lg mb-4 text-black print:text-xs print:mb-1 border-b-2 border-amber-600 pb-2 print:pb-0">TAX INVOICE</p>
 
-          <div className="main space-y-4 print:space-y-2">
-            <div className="seller border-b-2 border-gray-300 pb-4 print:pb-2">
+          <div className="main space-y-4 print:space-y-1">
+            <div className="seller border-b-2 border-gray-300 pb-4 print:pb-1 print:border-black">
               <div className="flex items-start gap-3">
                 <div className="logo-box">
-                  <img className="logo w-16 h-16 object-contain border-2 border-gray-600 print:w-12 print:h-12" src="/logo.png" alt="Sri Balaji Enterprises Logo" />
+                  <img className="logo w-16 h-16 object-contain border-2 border-gray-600 print:w-10 print:h-10" src="/logo.png" alt="Sri Balaji Enterprises Logo" />
                 </div>
                 <div className="seller-address text-black text-sm print:text-xs leading-tight">
                   <strong className="text-black text-base print:text-sm">SRI BALAJI ENTERPRISES</strong> <br />
@@ -259,28 +290,28 @@ export default function BillView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-1">
               <div className="lg:col-span-3 print:col-span-3 addresses-container border border-gray-400 print:border-black">
                 <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2">
-                  <div className="p-4 print:p-2 border-r border-gray-400 print:border-black address-divider">
-                    <strong className="text-black block mb-2 text-sm print:text-xs">Buyer Address</strong>
-                    <div className="text-black text-sm print:text-xs whitespace-pre-line">
+                  <div className="p-4 print:p-1 border-r border-gray-400 print:border-black address-divider">
+                    <strong className="text-black block mb-2 text-sm print:text-xs print:mb-0">Buyer Address</strong>
+                    <div className="text-black text-sm print:text-xs whitespace-pre-line leading-tight">
                       {formatAddress(bill.buyer_address, bill.buyer_name, bill.buyer_gst)}
                     </div>
                   </div>
-                  <div className="p-4 print:p-2">
-                    <strong className="text-black block mb-2 text-sm print:text-xs">
-                      {bill.is_same_address ? 'Shipping Address (Same as Buyer)' : 'Shipping Address'}
+                  <div className="p-4 print:p-1">
+                    <strong className="text-black block mb-2 text-sm print:text-xs print:mb-0">
+                      {bill.is_same_address ? 'Shipping Address (Same)' : 'Shipping Address'}
                     </strong>
-                    <div className="text-black text-sm print:text-xs whitespace-pre-line">
+                    <div className="text-black text-sm print:text-xs whitespace-pre-line leading-tight">
                       {formatAddress(bill.shipping_address || bill.buyer_address, bill.shipping_name || bill.buyer_name, bill.shipping_gst || bill.buyer_gst)}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="border border-gray-400 print:border-black p-4 print:p-2">
-                <div className="space-y-2 print:space-y-1 text-black text-sm print:text-xs">
+              <div className="border border-gray-400 print:border-black p-4 print:p-1">
+                <div className="space-y-2 print:space-y-0 text-black text-sm print:text-xs">
                   <div className="flex justify-between border-b border-gray-300 print:border-black pb-1 print:pb-0">
                     <div className="left font-semibold">Invoice No:</div>
                     <div className="right font-bold">{bill.bill_no}</div>
@@ -302,7 +333,7 @@ export default function BillView() {
             </div>
 
             <div className="border border-gray-400 print:border-black">
-              <div className="grid grid-cols-8 gap-1 bg-amber-100 print:bg-gray-200 p-2 font-semibold text-sm text-black print:text-xs text-center print-small">
+              <div className="grid grid-cols-8 gap-1 bg-amber-100 print:bg-gray-200 p-2 print:p-1 font-semibold text-sm text-black print:text-xs text-center print-small">
                 <div>Description of Goods</div>
                 <div>HSN/SAC</div>
                 <div>GST Rate</div>
@@ -312,24 +343,25 @@ export default function BillView() {
                 <div>Amount</div>
               </div>
 
-              <div className="grid grid-cols-8 gap-1 p-2 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
-                <div className="text-left">
-                  Cement<br /><br /><br /><br />
-                  CGST@9% <br />SGST@9%
+              <div className="grid grid-cols-8 gap-1 p-2 print:p-1 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
+                <div className="text-left leading-tight">
+                  Cement<br />
+                  <span className="text-[9px]">CGST@9%</span><br />
+                  <span className="text-[9px]">SGST@9%</span>
                 </div>
                 <div>2523</div>
                 <div>18%</div>
                 <div>{bill.quantity}</div>
                 <div>₹{formatCurrency(bill.rate)}</div>
                 <div>Bag</div>
-                <div>
-                  ₹{formatCurrency(bill.taxless_amount)}<br /><br /><br /><br />
+                <div className="leading-tight">
+                  ₹{formatCurrency(bill.taxless_amount)}<br />
                   ₹{formatCurrency(bill.cgst_amount)}<br />
                   ₹{formatCurrency(bill.sgst_amount)}
                 </div>
               </div>
 
-              <div className="grid grid-cols-8 gap-1 p-2 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
+              <div className="grid grid-cols-8 gap-1 p-2 print:p-1 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
                 <div className="text-left">Total</div>
                 <div></div>
                 <div></div>
@@ -340,7 +372,7 @@ export default function BillView() {
               </div>
             </div>
 
-            <div className="border border-gray-400 print:border-black p-3 print:p-2">
+            <div className="border border-gray-400 print:border-black p-3 print:p-1">
               <div className="text-sm text-black print:text-xs">
                 <strong>Amount Chargeable in words: </strong>
                 {numberToWords(bill.total_amount)}
@@ -348,19 +380,19 @@ export default function BillView() {
             </div>
 
             <div className="border border-gray-400 print:border-black">
-              <div className="grid grid-cols-7 gap-1 bg-amber-100 print:bg-gray-200 p-2 font-semibold text-sm text-black print:text-xs text-center print-small">
+              <div className="grid grid-cols-7 gap-1 bg-amber-100 print:bg-gray-200 p-2 print:p-1 font-semibold text-sm text-black print:text-xs text-center print-small">
                 <div>HSN/SAC</div>
                 <div>Taxable Value</div>
                 <div className="col-span-2 text-center border-x border-gray-400 print:border-black">
                   <div>Central Tax</div>
-                  <div className="grid grid-cols-2 mt-1">
+                  <div className="grid grid-cols-2 mt-1 print:mt-0">
                     <div>Rate</div>
                     <div>Amount</div>
                   </div>
                 </div>
                 <div className="col-span-2 text-center border-r border-gray-400 print:border-black">
                   <div>State Tax</div>
-                  <div className="grid grid-cols-2 mt-1">
+                  <div className="grid grid-cols-2 mt-1 print:mt-0">
                     <div>Rate</div>
                     <div>Amount</div>
                   </div>
@@ -368,7 +400,7 @@ export default function BillView() {
                 <div className="text-center">Total Tax Amount</div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 p-2 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
+              <div className="grid grid-cols-7 gap-1 p-2 print:p-1 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
                 <div>2523</div>
                 <div>₹{formatCurrency(bill.taxless_amount)}</div>
                 <div className="col-span-2 border-x border-gray-400 print:border-black">
@@ -386,7 +418,7 @@ export default function BillView() {
                 <div>₹{formatCurrency(bill.total_tax)}</div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 p-2 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
+              <div className="grid grid-cols-7 gap-1 p-2 print:p-1 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
                 <div>Total</div>
                 <div>₹{formatCurrency(bill.taxless_amount)}</div>
                 <div className="col-span-2 border-x border-gray-400 print:border-black">
@@ -405,24 +437,24 @@ export default function BillView() {
               </div>
             </div>
 
-            <div className="border border-gray-400 print:border-black p-3 print:p-2">
+            <div className="border border-gray-400 print:border-black p-3 print:p-1">
               <div className="text-sm text-black print:text-xs">
                 <strong>Tax amount in words: </strong>
                 {numberToWords(bill.total_tax || 0)}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
-              <div className="p-4 print:p-2 border-r border-gray-400 print:border-black">
-                <strong className="text-black block mb-2 text-sm print:text-xs">Declaration:</strong>
-                <div className="text-black text-sm print:text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-1 border border-gray-400 print:border-black">
+              <div className="p-4 print:p-1 border-r border-gray-400 print:border-black">
+                <strong className="text-black block mb-2 text-sm print:text-xs print:mb-0">Declaration:</strong>
+                <div className="text-black text-sm print:text-[9px] leading-tight">
                   1. 18% Interest will be charged on all invoice not paid within the said time from the date of invoice. <br />
                   2. Goods once sold will not be taken back or exchanged. our responsibility ceases soon after the goods.
                 </div>
               </div>
-              <div className="p-4 print:p-2">
-                <strong className="text-black block mb-2 text-sm print:text-xs">Company's Bank Details:</strong>
-                <div className="text-black text-sm print:text-xs">
+              <div className="p-4 print:p-1">
+                <strong className="text-black block mb-2 text-sm print:text-xs print:mb-0">Company's Bank Details:</strong>
+                <div className="text-black text-sm print:text-[9px] leading-tight">
                   BankName : AXIS BANK.<br />
                   A/c No. :920020056606334<br />
                   Branch & IFS Code :UTIB0003190
@@ -430,19 +462,21 @@ export default function BillView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
-              <div className="p-4 print:p-2 text-center border-r border-gray-400 print:border-black">
+            <div className="grid grid-cols-2 gap-4 print:gap-1 border border-gray-400 print:border-black">
+              <div className="p-4 print:p-1 text-center border-r border-gray-400 print:border-black">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">Customer's Seal and Signature</div>
-                <div className="h-16 border-b border-gray-400 print:border-black"></div>
+                {/* Reduced signature height significantly */}
+                <div className="h-16 print:h-8 border-b border-gray-400 print:border-black"></div>
               </div>
-              <div className="p-4 print:p-2 text-center">
+              <div className="p-4 print:p-1 text-center">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">For Sri Balaji Enterprises</div>
-                <div className="h-16 border-b border-gray-400 print:border-black"></div>
-                <div className="mt-2 text-sm text-black print:text-xs">Authorised Signatory</div>
+                {/* Reduced signature height significantly */}
+                <div className="h-16 print:h-8 border-b border-gray-400 print:border-black"></div>
+                <div className="mt-2 text-sm text-black print:text-[9px]">Authorised Signatory</div>
               </div>
             </div>
 
-            <div className="text-center border border-gray-400 print:border-black p-4 print:p-2 text-sm text-black print:text-xs">
+            <div className="text-center border border-gray-400 print:border-black p-4 print:p-1 text-sm text-black print:text-[9px]">
               SUBJECT TO BANGALORE JURISDICTION<br />
               This is a Computer Generated Invoice
             </div>
