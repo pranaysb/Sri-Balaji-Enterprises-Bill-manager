@@ -5,7 +5,12 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, FileText } from 'lucide-react'
-import type { BillFormData, Address, NewAddress, Bill } from '@/types'
+import type { BillFormData, Address, NewAddress } from '@/types'
+
+// Helper for safe floating point rounding to 2 decimals
+const roundToTwo = (num: number) => {
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
 
 export default function BillMakerContent() {
   const { user } = useUser()
@@ -118,7 +123,6 @@ export default function BillMakerContent() {
       setFormData({
         ...formData,
         is_same_address: false,
-        // Clear shipping address when unchecked
         shipping_address: '',
         shipping_name: '',
         shipping_gst: ''
@@ -132,37 +136,44 @@ export default function BillMakerContent() {
     setError('')
 
     try {
-      // Validate required fields
       if (!formData.bill_no || !formData.billing_date || !formData.quantity || !formData.total_amount || !formData.buyer_address) {
         setError('Please fill all required fields')
         setLoading(false)
         return
       }
 
-      // Validate shipping address if different
       if (!formData.is_same_address && !formData.shipping_address) {
         setError('Please fill shipping address or check "Same as Buyer Address"')
         setLoading(false)
         return
       }
 
-      // Calculate taxes (UPDATED FOR 18% GST)
-      // Original 28% was 1.28, updated to 1.18 for 18% total tax
-      const taxlessAmount = parseFloat(formData.total_amount) / 1.18
+      // --- PRODUCTION GRADE CALCULATION ---
+      const totalAmountInput = parseFloat(formData.total_amount)
 
-      // Calculate tax amount based on 18% rate
-      const taxAmount = taxlessAmount * 0.18
+      // 1. Calculate Taxless Amount: Total / 1.18 (for 18% tax)
+      // We round this to 2 decimals immediately to match what will be stored/printed
+      const taxless_val = roundToTwo(totalAmountInput / 1.18)
 
-      // Split equally between CGST and SGST (9% each)
-      const cgst = taxAmount / 2
-      const sgst = taxAmount / 2
+      // 2. Calculate Total Tax: Total - Taxless
+      // This ensures Taxless + Tax = Total is mathematically true
+      const total_tax_val = roundToTwo(totalAmountInput - taxless_val)
+
+      // 3. Split Tax into CGST and SGST
+      // We assign half to CGST, and the remainder to SGST
+      // This handles cases where total tax is odd (e.g., 0.15 -> 0.08 + 0.07)
+      const cgst_val = roundToTwo(total_tax_val / 2)
+      const sgst_val = roundToTwo(total_tax_val - cgst_val)
+
+      // 4. Calculate Rate per unit
+      const rate_val = roundToTwo(taxless_val / parseInt(formData.quantity))
 
       const billData = {
         bill_no: formData.bill_no,
         billing_date: formData.billing_date,
         vehicle_number: formData.vehicle_number || null,
         quantity: parseInt(formData.quantity),
-        total_amount: parseFloat(formData.total_amount),
+        total_amount: roundToTwo(totalAmountInput), // Ensure 2 decimals
         buyer_address: formData.buyer_address,
         buyer_name: formData.buyer_name || null,
         buyer_gst: formData.buyer_gst || null,
@@ -170,24 +181,21 @@ export default function BillMakerContent() {
         shipping_name: formData.is_same_address ? formData.buyer_name : formData.shipping_name,
         shipping_gst: formData.is_same_address ? formData.buyer_gst : formData.shipping_gst,
         is_same_address: formData.is_same_address,
-        // Update rate calculation to use 1.18 divisor
-        rate: Math.round((parseFloat(formData.total_amount) / parseInt(formData.quantity)) / 1.18),
-        taxless_amount: Math.round(taxlessAmount),
-        cgst_amount: Math.round(cgst),
-        sgst_amount: Math.round(sgst),
-        total_tax: Math.round(taxAmount),
+        rate: rate_val,
+        taxless_amount: taxless_val,
+        cgst_amount: cgst_val,
+        sgst_amount: sgst_val,
+        total_tax: total_tax_val,
       }
 
       let result
       if (editId) {
-        // Update existing bill
         result = await supabase
           .from('bills')
           .update(billData)
           .eq('id', editId)
           .eq('user_id', user?.id)
       } else {
-        // Create new bill
         result = await supabase
           .from('bills')
           .insert([{
@@ -196,11 +204,8 @@ export default function BillMakerContent() {
           }])
       }
 
-      if (result.error) {
-        throw result.error
-      }
+      if (result.error) throw result.error
 
-      // Success - redirect to dashboard
       router.push('/')
       router.refresh()
 
@@ -268,16 +273,12 @@ export default function BillMakerContent() {
   return (
     <div className="min-h-screen bg-amber-50 py-8">
       <div className="container mx-auto px-4 max-w-6xl">
-        <Link
-          href="/"
-          className="inline-flex items-center text-amber-700 hover:text-amber-900 mb-6 transition-colors duration-200"
-        >
+        <Link href="/" className="inline-flex items-center text-amber-700 hover:text-amber-900 mb-6 transition-colors duration-200">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Dashboard
         </Link>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-amber-200">
-          {/* Header */}
           <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-8 py-6">
             <h1 className="text-3xl font-bold flex items-center">
               <FileText className="w-8 h-8 mr-3" />
@@ -288,22 +289,16 @@ export default function BillMakerContent() {
             </p>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-700 font-medium">{error}</p>
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
-            {/* Basic Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Invoice Number */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Invoice No *
-                </label>
+                <label className="block text-sm font-semibold text-gray-900">Invoice No *</label>
                 <input
                   type="text"
                   name="bill_no"
@@ -315,11 +310,8 @@ export default function BillMakerContent() {
                 />
               </div>
 
-              {/* Billing Date */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Billing Date *
-                </label>
+                <label className="block text-sm font-semibold text-gray-900">Billing Date *</label>
                 <input
                   type="date"
                   name="billing_date"
@@ -330,11 +322,8 @@ export default function BillMakerContent() {
                 />
               </div>
 
-              {/* Vehicle Number */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Vehicle Number
-                </label>
+                <label className="block text-sm font-semibold text-gray-900">Vehicle Number</label>
                 <input
                   type="text"
                   name="vehicle_number"
@@ -345,11 +334,8 @@ export default function BillMakerContent() {
                 />
               </div>
 
-              {/* Number of Bags */}
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Number of Bags *
-                </label>
+                <label className="block text-sm font-semibold text-gray-900">Number of Bags *</label>
                 <input
                   type="number"
                   name="quantity"
@@ -362,11 +348,8 @@ export default function BillMakerContent() {
                 />
               </div>
 
-              {/* Total Amount */}
               <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Total Amount (incl. tax) *
-                </label>
+                <label className="block text-sm font-semibold text-gray-900">Total Amount (incl. tax) *</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600 font-bold">₹</span>
                   <input
@@ -384,19 +367,11 @@ export default function BillMakerContent() {
               </div>
             </div>
 
-            {/* Address Section - Two Columns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Buyer Address */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <label className="block text-lg font-bold text-gray-900">
-                    Buyer Address *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => openAddressModal('buyer')}
-                    className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200"
-                  >
+                  <label className="block text-lg font-bold text-gray-900">Buyer Address *</label>
+                  <button type="button" onClick={() => openAddressModal('buyer')} className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200">
                     📖 Manage Addresses
                   </button>
                 </div>
@@ -407,26 +382,17 @@ export default function BillMakerContent() {
                   required
                   rows={4}
                   className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical"
-                  placeholder="Enter complete buyer address with name, address, city, state, and PIN code..."
+                  placeholder="Enter complete buyer address..."
                 />
               </div>
 
-              {/* Shipping Address */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <label className="block text-lg font-bold text-gray-900">
-                    Shipping Address
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => openAddressModal('shipping')}
-                    className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200"
-                  >
+                  <label className="block text-lg font-bold text-gray-900">Shipping Address</label>
+                  <button type="button" onClick={() => openAddressModal('shipping')} className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200">
                     📖 Manage Addresses
                   </button>
                 </div>
-
-                {/* Same Address Checkbox */}
                 <div className="flex items-center space-x-3 mb-4">
                   <input
                     type="checkbox"
@@ -436,11 +402,8 @@ export default function BillMakerContent() {
                     onChange={(e) => handleSameAddressChange(e.target.checked)}
                     className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 focus:ring-2"
                   />
-                  <label htmlFor="same_address" className="text-sm font-medium text-gray-900">
-                    Same as Buyer Address
-                  </label>
+                  <label htmlFor="same_address" className="text-sm font-medium text-gray-900">Same as Buyer Address</label>
                 </div>
-
                 <textarea
                   name="shipping_address"
                   value={formData.shipping_address}
@@ -448,21 +411,14 @@ export default function BillMakerContent() {
                   required={!formData.is_same_address}
                   disabled={formData.is_same_address}
                   rows={4}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical ${formData.is_same_address
-                    ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
-                    : 'bg-white border-amber-200'
-                    }`}
-                  placeholder={formData.is_same_address ? "Same as buyer address" : "Enter shipping address if different from buyer address..."}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical ${formData.is_same_address ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed' : 'bg-white border-amber-200'}`}
+                  placeholder={formData.is_same_address ? "Same as buyer address" : "Enter shipping address..."}
                 />
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex justify-end pt-8 border-t border-amber-200 space-x-4">
-              <Link
-                href="/"
-                className="px-8 py-3 border-2 border-amber-300 text-amber-700 font-semibold rounded-xl hover:bg-amber-50 transition-all duration-200"
-              >
+              <Link href="/" className="px-8 py-3 border-2 border-amber-300 text-amber-700 font-semibold rounded-xl hover:bg-amber-50 transition-all duration-200">
                 Cancel
               </Link>
               <button
@@ -478,88 +434,38 @@ export default function BillMakerContent() {
         </div>
       </div>
 
-      {/* Address Modal */}
       {showAddressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-amber-200">
-            {/* Modal Header */}
             <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-6 py-4">
-              <h3 className="text-2xl font-bold">
-                {addressType === 'buyer' ? 'Buyer Address Book' : 'Shipping Address Book'}
-              </h3>
+              <h3 className="text-2xl font-bold">{addressType === 'buyer' ? 'Buyer Address Book' : 'Shipping Address Book'}</h3>
               <p className="text-amber-100">Select or add a {addressType} address</p>
             </div>
-
             <div className="p-6 max-h-96 overflow-y-auto">
-              {/* Saved Addresses */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Saved Addresses</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {addresses.length > 0 ? addresses.map((address) => (
-                    <div
-                      key={address.id}
-                      className="border-2 border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-all duration-200 group"
-                      onClick={() => selectAddress(address, addressType)}
-                    >
+                    <div key={address.id} className="border-2 border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-all duration-200 group" onClick={() => selectAddress(address, addressType)}>
                       <h4 className="font-bold text-gray-900 group-hover:text-amber-700">{address.name}</h4>
                       <p className="text-sm text-gray-700 mt-2">{address.address}</p>
-                      {address.gst_number && (
-                        <p className="text-xs text-amber-600 mt-2 font-medium">GST: {address.gst_number}</p>
-                      )}
-                      <div className="mt-3 text-xs text-amber-500 font-semibold">
-                        Click to select as {addressType} address
-                      </div>
+                      {address.gst_number && <p className="text-xs text-amber-600 mt-2 font-medium">GST: {address.gst_number}</p>}
                     </div>
                   )) : (
-                    <div className="col-span-2 text-center py-8 text-amber-600">
-                      <p>No saved addresses yet</p>
-                      <p className="text-sm mt-1">Add your first address below</p>
-                    </div>
+                    <div className="col-span-2 text-center py-8 text-amber-600"><p>No saved addresses yet</p></div>
                   )}
                 </div>
               </div>
-
-              {/* Add New Address */}
               <div className="border-t border-amber-200 pt-6">
                 <h4 className="text-xl font-semibold text-gray-900 mb-4">Add New Address</h4>
                 <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Name *"
-                    value={newAddress.name}
-                    onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900"
-                  />
-                  <textarea
-                    placeholder="Full Address *"
-                    rows={3}
-                    value={newAddress.address}
-                    onChange={(e) => setNewAddress({ ...newAddress, address: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical"
-                  />
-                  <input
-                    type="text"
-                    placeholder="GST Number (Optional)"
-                    value={newAddress.gst_number}
-                    onChange={(e) => setNewAddress({ ...newAddress, gst_number: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900"
-                  />
+                  <input type="text" placeholder="Name *" value={newAddress.name} onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })} className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-gray-900" />
+                  <textarea placeholder="Full Address *" rows={3} value={newAddress.address} onChange={(e) => setNewAddress({ ...newAddress, address: e.target.value })} className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-gray-900 resize-vertical" />
+                  <input type="text" placeholder="GST Number (Optional)" value={newAddress.gst_number} onChange={(e) => setNewAddress({ ...newAddress, gst_number: e.target.value })} className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-gray-900" />
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddressModal(false)}
-                    className="px-6 py-3 border-2 border-amber-300 text-amber-700 font-semibold rounded-xl hover:bg-amber-50 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveAddress}
-                    className="bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold px-6 py-3 rounded-xl hover:from-amber-700 hover:to-amber-800 transition-all duration-200"
-                  >
-                    Save Address
-                  </button>
+                  <button type="button" onClick={() => setShowAddressModal(false)} className="px-6 py-3 border-2 border-amber-300 text-amber-700 font-semibold rounded-xl hover:bg-amber-50">Cancel</button>
+                  <button type="button" onClick={saveAddress} className="bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold px-6 py-3 rounded-xl hover:from-amber-700 hover:to-amber-800">Save Address</button>
                 </div>
               </div>
             </div>
