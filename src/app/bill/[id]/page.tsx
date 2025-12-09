@@ -473,13 +473,13 @@ export default function BillView() {
             <div className="grid grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
               <div className="p-4 print:p-2 text-center border-r border-gray-400 print:border-black">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">Customer's Seal and Signature</div>
-                {/* Reduced height from h-16 to h-10 to save space without crushing */}
-                <div className="h-16 print:h-10 border-b border-gray-400 print:border-black"></div>
+                {/* REMOVED BORDER, KEPT SPACE */}
+                <div className="h-16 print:h-10"></div>
               </div>
               <div className="p-4 print:p-2 text-center">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">For Sri Balaji Enterprises</div>
-                {/* Reduced height from h-16 to h-10 */}
-                <div className="h-16 print:h-10 border-b border-gray-400 print:border-black"></div>
+                {/* REMOVED BORDER, KEPT SPACE */}
+                <div className="h-16 print:h-10"></div>
                 <div className="mt-2 text-sm text-black print:text-[11px]">Authorised Signatory</div>
               </div>
             </div>
