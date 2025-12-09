@@ -463,6 +463,8 @@ export default function BillView() {
               <div className="p-4 print:p-2">
                 <strong className="text-black block mb-2 text-sm print:text-xs">Company's Bank Details:</strong>
                 <div className="text-black text-sm print:text-[11px] leading-tight">
+                  <strong>Sri Balaji Enterprises</strong><br />
+                  Branch : Kathriguppe<br />
                   BankName : AXIS BANK.<br />
                   A/c No. :920020056606334<br />
                   Branch & IFS Code :UTIB0003190
