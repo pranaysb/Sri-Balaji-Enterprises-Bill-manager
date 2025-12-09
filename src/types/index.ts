@@ -9,6 +9,10 @@ export interface Bill {
   buyer_address: string;
   buyer_name?: string;
   buyer_gst?: string;
+  shipping_address?: string;
+  shipping_name?: string;
+  shipping_gst?: string;
+  is_same_address: boolean;
   rate: number;
   taxless_amount: number;
   cgst_amount: number;
@@ -36,6 +40,10 @@ export interface BillFormData {
   buyer_address: string;
   buyer_name: string;
   buyer_gst: string;
+  shipping_address: string;
+  shipping_name: string;
+  shipping_gst: string;
+  is_same_address: boolean;
 }
 
 export interface NewAddress {

@@ -51,7 +51,7 @@ export default function BillView() {
       }
 
       const canvas = await html2canvas(billElement, {
-        scale: 3, // Increased scale for better quality
+        scale: 3,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
@@ -59,14 +59,14 @@ export default function BillView() {
         height: billElement.scrollHeight
       })
 
-      const imgData = canvas.toDataURL('image/png', 1.0) // Highest quality
+      const imgData = canvas.toDataURL('image/png', 1.0)
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgWidth = 190 // Slightly smaller to fit borders
-      const pageHeight = 277 // Account for margins
+      const imgWidth = 190
+      const pageHeight = 277
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       let heightLeft = imgHeight
-      let position = 10 // Start with top margin
+      let position = 10
 
       pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
@@ -133,7 +133,6 @@ export default function BillView() {
       return tens[Math.floor(n / 10)] + (n % 10 > 0 ? ' ' + units[n % 10] : '')
     }
 
-    // Handle decimal (paise)
     let rupees = Math.floor(num)
     let paise = Math.round((num - rupees) * 100)
 
@@ -143,23 +142,19 @@ export default function BillView() {
 
     let words = ''
 
-    // Handle lakhs and crores (Indian numbering system)
     if (rupees >= 10000000) {
-      // Crores
       const crores = Math.floor(rupees / 10000000)
       words += convertTwoDigits(crores) + ' Crore '
       rupees %= 10000000
     }
 
     if (rupees >= 100000) {
-      // Lakhs
       const lakhs = Math.floor(rupees / 100000)
       words += convertTwoDigits(lakhs) + ' Lakh '
       rupees %= 100000
     }
 
     if (rupees >= 1000) {
-      // Thousands
       const thousandsNum = Math.floor(rupees / 1000)
       words += convertTwoDigits(thousandsNum) + ' Thousand '
       rupees %= 1000
@@ -183,13 +178,30 @@ export default function BillView() {
     })
   }
 
-  // Function to render buyer address with line breaks
-  const renderBuyerAddress = (address: string) => {
+  // Function to format address with name and GSTIN properly
+  const formatAddress = (address: string, name?: string, gstin?: string) => {
     if (!address) return null
-    return address.split('\n').map((line, index) => (
+
+    const lines = address.split('\n')
+    const formattedLines = []
+
+    // Add name as first line if exists
+    if (name) {
+      formattedLines.push(name)
+    }
+
+    // Add address lines
+    formattedLines.push(...lines)
+
+    // Add GSTIN as last line if exists
+    if (gstin) {
+      formattedLines.push(`GSTIN: ${gstin}`)
+    }
+
+    return formattedLines.map((line, index) => (
       <span key={index}>
         {line}
-        {index < address.split('\n').length - 1 && <br />}
+        {index < formattedLines.length - 1 && <br />}
       </span>
     ))
   }
@@ -241,30 +253,25 @@ export default function BillView() {
             max-width: none !important;
             background: white !important;
             font-size: 12px !important;
-            line-height: 1.2 !important;
+            line-height: 1.1 !important;
             border-collapse: collapse !important;
-          }
-          .print-compact {
-            margin: 0 !important;
-            padding: 6px !important;
           }
           .print-small {
             font-size: 11px !important;
           }
-          .print-border {
+          .addresses-container {
             border: 1px solid #000 !important;
+            page-break-inside: avoid !important;
           }
-          .print-border-all {
-            border: 1px solid #000 !important;
+          .address-divider {
+            border-right: 1px solid #000 !important;
           }
-          .print-border-thick {
-            border: 2px solid #000 !important;
-          }
-          .print-bg-amber {
-            background-color: #fef3c7 !important;
-          }
-          .print-bg-gray {
-            background-color: #f3f4f6 !important;
+          .address-half {
+            width: 50% !important;
+            display: inline-block !important;
+            vertical-align: top !important;
+            padding: 8px !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
@@ -296,64 +303,88 @@ export default function BillView() {
         </div>
 
         {/* Invoice Content */}
-        <div id="bill-content" className="bill-content bg-white shadow-xl mx-auto max-w-4xl p-6 border-2 border-gray-800 print:shadow-none print:max-w-none print:p-3 print-border-thick">
+        <div id="bill-content" className="bill-content bg-white shadow-xl mx-auto max-w-6xl p-6 border-2 border-gray-800 print:shadow-none print:max-w-none print:p-3">
 
-          <p className="tax-invoice text-center font-bold text-lg mb-4 text-black print:text-sm print:mb-2 print-border-all print-bg-amber py-1">TAX INVOICE</p>
+          <p className="tax-invoice text-center font-bold text-lg mb-4 text-black print:text-sm print:mb-2 border-b-2 border-amber-600 pb-2">TAX INVOICE</p>
 
-          <div className="main">
-            <div className="top-div grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 print:gap-2 print:mb-2">
-              <div className="top-left">
-                <div className="seller mb-4 print:mb-2">
-                  <div className="flex items-start gap-3">
-                    <div className="logo-box">
-                      <img
-                        className="logo w-16 h-16 object-contain border-2 border-gray-600 print:w-12 print:h-12 print-border"
-                        src="/logo.png"
-                        alt="Sri Balaji Enterprises Logo"
-                      />
+          <div className="main space-y-4 print:space-y-2">
+            {/* Seller Info */}
+            <div className="seller border-b-2 border-gray-300 pb-4 print:pb-2">
+              <div className="flex items-start gap-3">
+                <div className="logo-box">
+                  <img
+                    className="logo w-16 h-16 object-contain border-2 border-gray-600 print:w-12 print:h-12"
+                    src="/logo.png"
+                    alt="Sri Balaji Enterprises Logo"
+                  />
+                </div>
+                <div className="seller-address text-black text-sm print:text-xs leading-tight">
+                  <strong className="text-black text-base print:text-sm">SRI BALAJI ENTERPRISES</strong> <br />
+                  #10/60,3rd cross,3rd main, <br />
+                  Srinivasnagar, BSK 3rd stage,<br />
+                  Bangalore-560085, Karnataka<br />
+                  GST IN/UIP :29BAIPS9033A1ZL<br />
+                  MOBILE NO:9483949650<br />
+                  GMAIL: seelambalaji1969@gmail.com
+                </div>
+              </div>
+            </div>
+
+            {/* Addresses and Invoice Details Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
+              {/* Addresses Container - Takes 3 columns */}
+              <div className="lg:col-span-3 print:col-span-3 addresses-container border border-gray-400 print:border-black">
+                <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2">
+                  {/* Buyer Address - Left Side */}
+                  <div className="p-4 print:p-2 border-r border-gray-400 print:border-black address-divider">
+                    <strong className="text-black block mb-2 text-sm print:text-xs">Buyer Address</strong>
+                    <div className="text-black text-sm print:text-xs whitespace-pre-line">
+                      {formatAddress(bill.buyer_address, bill.buyer_name, bill.buyer_gst)}
                     </div>
-                    <div className="seller-address text-black text-sm print:text-xs leading-tight">
-                      <strong className="text-black text-base print:text-sm">SRI BALAJI ENTERPRISES</strong> <br />
-                      #10/60,3rd cross,3rd main, <br />
-                      Srinivasnagar, BSK 3rd stage,<br />
-                      Bangalore-560085, Karnataka<br />
-                      GST IN/UIP :29BAIPS9033A1ZL<br />
-                      MOBILE NO:9483949650<br />
-                      GMAIL: seelambalaji1969@gmail.com
+                  </div>
+
+                  {/* Shipping Address - Right Side */}
+                  <div className="p-4 print:p-2">
+                    <strong className="text-black block mb-2 text-sm print:text-xs">
+                      {bill.is_same_address ? 'Shipping Address (Same as Buyer)' : 'Shipping Address'}
+                    </strong>
+                    <div className="text-black text-sm print:text-xs whitespace-pre-line">
+                      {formatAddress(
+                        bill.shipping_address || bill.buyer_address,
+                        bill.shipping_name || bill.buyer_name,
+                        bill.shipping_gst || bill.buyer_gst
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="buyer text-black text-sm print:text-xs print-border-all p-2">
-                  <strong className="text-black">Buyer</strong><br />
-                  <span className="text-black whitespace-pre-line">
-                    {renderBuyerAddress(bill.buyer_address)}
-                  </span>
-                </div>
               </div>
 
-              <div className="top-right space-y-1 text-black text-sm print:text-xs print:space-y-0 print-border-all p-2">
-                <div className="one flex justify-between border-b border-gray-400 pb-1 print:pb-0">
-                  <div className="left">Invoice No:</div>
-                  <div className="right font-semibold">{bill.bill_no}</div>
-                </div>
-                <div className="two flex justify-between border-b border-gray-400 pb-1 print:pb-0">
-                  <div className="left">Date:</div>
-                  <div className="right font-semibold">{formatDate(bill.billing_date)}</div>
-                </div>
-                <div className="three flex justify-between border-b border-gray-400 pb-1 print:pb-0">
-                  <div className="left">E way no:</div>
-                  <div className="right">{bill.eway_number || 'N/A'}</div>
-                </div>
-                <div className="four flex justify-between">
-                  <div className="left">Vehicle No:</div>
-                  <div className="right">{bill.vehicle_number || 'N/A'}</div>
+              {/* Invoice Details - Right column */}
+              <div className="border border-gray-400 print:border-black p-4 print:p-2">
+                <div className="space-y-2 print:space-y-1 text-black text-sm print:text-xs">
+                  <div className="flex justify-between border-b border-gray-300 print:border-black pb-1 print:pb-0">
+                    <div className="left font-semibold">Invoice No:</div>
+                    <div className="right font-bold">{bill.bill_no}</div>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-300 print:border-black pb-1 print:pb-0">
+                    <div className="left font-semibold">Date:</div>
+                    <div className="right">{formatDate(bill.billing_date)}</div>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-300 print:border-black pb-1 print:pb-0">
+                    <div className="left font-semibold">E way no:</div>
+                    <div className="right">{bill.eway_number || 'N/A'}</div>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="left font-semibold">Vehicle No:</div>
+                    <div className="right">{bill.vehicle_number || 'N/A'}</div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Product Table */}
-            <div className="mid-div mb-4 print:mb-2">
-              <div className="content-heads grid grid-cols-8 gap-1 bg-amber-100 p-2 font-semibold text-sm text-black print:bg-gray-200 print:text-xs text-center print-small print-border-all">
+            <div className="border border-gray-400 print:border-black">
+              <div className="grid grid-cols-8 gap-1 bg-amber-100 print:bg-gray-200 p-2 font-semibold text-sm text-black print:text-xs text-center print-small">
                 <div>Description of Goods</div>
                 <div>HSN/SAC</div>
                 <div>GST Rate</div>
@@ -363,13 +394,13 @@ export default function BillView() {
                 <div>Amount</div>
               </div>
 
-              <div className="content grid grid-cols-8 gap-1 p-2 border-b border-gray-400 text-sm text-black print:text-xs print:border-black text-center print-small print-border-all">
+              <div className="grid grid-cols-8 gap-1 p-2 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
                 <div className="text-left">
                   Cement<br /><br /><br /><br />
-                  CGST@14% <br />SGST@14%
+                  CGST@9% <br />SGST@9%
                 </div>
                 <div>2523</div>
-                <div>28%</div>
+                <div>18%</div>
                 <div>{bill.quantity}</div>
                 <div>₹{bill.rate?.toLocaleString()}</div>
                 <div>Bag</div>
@@ -380,7 +411,7 @@ export default function BillView() {
                 </div>
               </div>
 
-              <div className="total grid grid-cols-8 gap-1 p-2 font-semibold bg-amber-50 text-black print:bg-gray-100 print:text-xs text-center print-small print-border-all">
+              <div className="grid grid-cols-8 gap-1 p-2 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
                 <div className="text-left">Total</div>
                 <div></div>
                 <div></div>
@@ -389,25 +420,29 @@ export default function BillView() {
                 <div></div>
                 <div>₹{bill.total_amount?.toLocaleString()}</div>
               </div>
+            </div>
 
-              <div className="total-words mt-2 text-sm text-black print:text-xs print:mt-1 print-border-all p-2">
-                Amount Chargeable in words: {numberToWords(bill.total_amount)}
+            {/* Amount in Words */}
+            <div className="border border-gray-400 print:border-black p-3 print:p-2">
+              <div className="text-sm text-black print:text-xs">
+                <strong>Amount Chargeable in words: </strong>
+                {numberToWords(bill.total_amount)}
               </div>
             </div>
 
-            {/* Tax Breakdown with Total Tax Column */}
-            <div className="tax-div mb-4 print:mb-2">
-              <div className="tax-head grid grid-cols-7 gap-1 bg-amber-100 p-2 font-semibold text-sm text-black print:bg-gray-200 print:text-xs text-center print-small print-border-all">
+            {/* Tax Breakdown */}
+            <div className="border border-gray-400 print:border-black">
+              <div className="grid grid-cols-7 gap-1 bg-amber-100 print:bg-gray-200 p-2 font-semibold text-sm text-black print:text-xs text-center print-small">
                 <div>HSN/SAC</div>
                 <div>Taxable Value</div>
-                <div className="col-span-2 text-center border-x border-gray-400">
+                <div className="col-span-2 text-center border-x border-gray-400 print:border-black">
                   <div>Central Tax</div>
                   <div className="grid grid-cols-2 mt-1">
                     <div>Rate</div>
                     <div>Amount</div>
                   </div>
                 </div>
-                <div className="col-span-2 text-center border-r border-gray-400">
+                <div className="col-span-2 text-center border-r border-gray-400 print:border-black">
                   <div>State Tax</div>
                   <div className="grid grid-cols-2 mt-1">
                     <div>Rate</div>
@@ -419,36 +454,36 @@ export default function BillView() {
                 </div>
               </div>
 
-              <div className="tax-hsn grid grid-cols-7 gap-1 p-2 border-b border-gray-400 text-sm text-black print:text-xs print:border-black text-center print-small print-border-all">
+              <div className="grid grid-cols-7 gap-1 p-2 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
                 <div>2523</div>
                 <div>₹{bill.taxless_amount?.toLocaleString()}</div>
-                <div className="col-span-2 border-x border-gray-400">
+                <div className="col-span-2 border-x border-gray-400 print:border-black">
                   <div className="grid grid-cols-2">
-                    <div>14%</div>
+                    <div>9%</div>
                     <div>₹{bill.cgst_amount?.toLocaleString()}</div>
                   </div>
                 </div>
-                <div className="col-span-2 border-r border-gray-400">
+                <div className="col-span-2 border-r border-gray-400 print:border-black">
                   <div className="grid grid-cols-2">
-                    <div>14%</div>
+                    <div>9%</div>
                     <div>₹{bill.sgst_amount?.toLocaleString()}</div>
                   </div>
                 </div>
                 <div>₹{(bill.total_tax || 0)?.toLocaleString()}</div>
               </div>
 
-              <div className="tax-total grid grid-cols-7 gap-1 p-2 font-semibold bg-amber-50 text-black print:bg-gray-100 print:text-xs text-center print-small print-border-all">
+              <div className="grid grid-cols-7 gap-1 p-2 border-t border-gray-400 print:border-black font-semibold bg-amber-50 print:bg-gray-100 text-black print:text-xs text-center print-small">
                 <div>Total</div>
                 <div>₹{bill.taxless_amount?.toLocaleString()}</div>
-                <div className="col-span-2 border-x border-gray-400">
+                <div className="col-span-2 border-x border-gray-400 print:border-black">
                   <div className="grid grid-cols-2">
-                    <div>14%</div>
+                    <div>9%</div>
                     <div>₹{bill.cgst_amount?.toLocaleString()}</div>
                   </div>
                 </div>
-                <div className="col-span-2 border-r border-gray-400">
+                <div className="col-span-2 border-r border-gray-400 print:border-black">
                   <div className="grid grid-cols-2">
-                    <div>14%</div>
+                    <div>9%</div>
                     <div>₹{bill.sgst_amount?.toLocaleString()}</div>
                   </div>
                 </div>
@@ -456,46 +491,51 @@ export default function BillView() {
               </div>
             </div>
 
-            <div className="tax-words text-sm mb-4 text-black print:text-xs print:mb-2 print-border-all p-2">
-              Tax amount in words: {numberToWords(bill.total_tax || 0)}
+            {/* Tax Amount in Words */}
+            <div className="border border-gray-400 print:border-black p-3 print:p-2">
+              <div className="text-sm text-black print:text-xs">
+                <strong>Tax amount in words: </strong>
+                {numberToWords(bill.total_tax || 0)}
+              </div>
             </div>
 
-            {/* Footer */}
-            <div className="bottom-div border-t border-gray-400 pt-4 text-black print:pt-2 print:border-black">
-              <div className="declaration grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm print:text-xs print:mb-2 print:gap-2">
-                <div className="print-border-all p-2">
-                  <strong className="text-black">Declaration:</strong><br />
-                  <span className="text-black">
-                    1. 18% Interest will be charged on all invoice not paid within the said time from the date of invoice. <br />
-                    2. Goods once sold will not be taken back or exchanged. our responsibility ceases soon after the goods.
-                  </span>
-                </div>
-                <div className="print-border-all p-2">
-                  <strong className="text-black">Company's Bank Details:</strong><br />
-                  <span className="text-black">
-                    BankName : AXIS BANK.<br />
-                    A/c No. :920020056606334<br />
-                    Branch & IFS Code :UTIB0003190
-                  </span>
+            {/* Footer Sections */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
+              <div className="p-4 print:p-2 border-r border-gray-400 print:border-black">
+                <strong className="text-black block mb-2 text-sm print:text-xs">Declaration:</strong>
+                <div className="text-black text-sm print:text-xs">
+                  1. 18% Interest will be charged on all invoice not paid within the said time from the date of invoice. <br />
+                  2. Goods once sold will not be taken back or exchanged. our responsibility ceases soon after the goods.
                 </div>
               </div>
-
-              <div className="sign-seal grid grid-cols-2 gap-4 text-sm text-black print:text-xs print:gap-2">
-                <div className="cust-sign text-center print-border-all p-2">
-                  Customer's Seal and Signature
-                </div>
-                <div className="seller-sign text-center print-border-all p-2">
-                  For Sri Balaji Enterprises
-                  <br /><br /><br /><br />
-                  Authorised Signatory
+              <div className="p-4 print:p-2">
+                <strong className="text-black block mb-2 text-sm print:text-xs">Company's Bank Details:</strong>
+                <div className="text-black text-sm print:text-xs">
+                  BankName : AXIS BANK.<br />
+                  A/c No. :920020056606334<br />
+                  Branch & IFS Code :UTIB0003190
                 </div>
               </div>
             </div>
 
-            <p className="conclusion text-center text-sm mt-4 border-t border-gray-400 pt-2 text-black print:text-xs print:mt-2 print:pt-1 print:border-black print-border-all p-2">
+            {/* Signatures */}
+            <div className="grid grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
+              <div className="p-4 print:p-2 text-center border-r border-gray-400 print:border-black">
+                <div className="mb-2 font-semibold text-black text-sm print:text-xs">Customer's Seal and Signature</div>
+                <div className="h-16 border-b border-gray-400 print:border-black"></div>
+              </div>
+              <div className="p-4 print:p-2 text-center">
+                <div className="mb-2 font-semibold text-black text-sm print:text-xs">For Sri Balaji Enterprises</div>
+                <div className="h-16 border-b border-gray-400 print:border-black"></div>
+                <div className="mt-2 text-sm text-black print:text-xs">Authorised Signatory</div>
+              </div>
+            </div>
+
+            {/* Conclusion */}
+            <div className="text-center border border-gray-400 print:border-black p-4 print:p-2 text-sm text-black print:text-xs">
               SUBJECT TO BANGALORE JURISDICTION<br />
               This is a Computer Generated Invoice
-            </p>
+            </div>
           </div>
         </div>
       </div>

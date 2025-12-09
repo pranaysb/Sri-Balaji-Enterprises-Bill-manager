@@ -7,6 +7,10 @@ export interface CreateBillRequest {
   buyer_address: string;
   buyer_name?: string;
   buyer_gst?: string;
+  shipping_address?: string;
+  shipping_name?: string;
+  shipping_gst?: string;
+  is_same_address?: boolean;
 }
 
 export interface UpdateBillRequest extends Partial<CreateBillRequest> {

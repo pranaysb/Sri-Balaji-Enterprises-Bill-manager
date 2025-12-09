@@ -21,15 +21,20 @@ export default function BillMakerContent() {
     total_amount: '',
     buyer_address: '',
     buyer_name: '',
-    buyer_gst: ''
+    buyer_gst: '',
+    shipping_address: '',
+    shipping_name: '',
+    shipping_gst: '',
+    is_same_address: true
   })
 
   const [addresses, setAddresses] = useState<Address[]>([])
   const [showAddressModal, setShowAddressModal] = useState(false)
-  const [newAddress, setNewAddress] = useState<NewAddress>({ 
-    name: '', 
-    address: '', 
-    gst_number: '' 
+  const [addressType, setAddressType] = useState<'buyer' | 'shipping'>('buyer')
+  const [newAddress, setNewAddress] = useState<NewAddress>({
+    name: '',
+    address: '',
+    gst_number: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
@@ -50,7 +55,7 @@ export default function BillMakerContent() {
         .select('*')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
-      
+
       if (error) throw error
       setAddresses(data || [])
     } catch (error) {
@@ -78,7 +83,11 @@ export default function BillMakerContent() {
           total_amount: data.total_amount.toString(),
           buyer_address: data.buyer_address,
           buyer_name: data.buyer_name || '',
-          buyer_gst: data.buyer_gst || ''
+          buyer_gst: data.buyer_gst || '',
+          shipping_address: data.shipping_address || data.buyer_address,
+          shipping_name: data.shipping_name || data.buyer_name || '',
+          shipping_gst: data.shipping_gst || data.buyer_gst || '',
+          is_same_address: data.is_same_address ?? true
         })
       }
     } catch (error) {
@@ -88,11 +97,33 @@ export default function BillMakerContent() {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
+    const { name, value, type } = e.target
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     })
     if (error) setError('')
+  }
+
+  const handleSameAddressChange = (isSame: boolean): void => {
+    if (isSame) {
+      setFormData({
+        ...formData,
+        is_same_address: true,
+        shipping_address: formData.buyer_address,
+        shipping_name: formData.buyer_name,
+        shipping_gst: formData.buyer_gst
+      })
+    } else {
+      setFormData({
+        ...formData,
+        is_same_address: false,
+        // Clear shipping address when unchecked
+        shipping_address: '',
+        shipping_name: '',
+        shipping_gst: ''
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -108,12 +139,24 @@ export default function BillMakerContent() {
         return
       }
 
-      // Calculate taxes
-      const taxlessAmount = parseFloat(formData.total_amount) / 1.28
-      const taxAmount = taxlessAmount * 0.28
+      // Validate shipping address if different
+      if (!formData.is_same_address && !formData.shipping_address) {
+        setError('Please fill shipping address or check "Same as Buyer Address"')
+        setLoading(false)
+        return
+      }
+
+      // Calculate taxes (UPDATED FOR 18% GST)
+      // Original 28% was 1.28, updated to 1.18 for 18% total tax
+      const taxlessAmount = parseFloat(formData.total_amount) / 1.18
+
+      // Calculate tax amount based on 18% rate
+      const taxAmount = taxlessAmount * 0.18
+
+      // Split equally between CGST and SGST (9% each)
       const cgst = taxAmount / 2
       const sgst = taxAmount / 2
-      
+
       const billData = {
         bill_no: formData.bill_no,
         billing_date: formData.billing_date,
@@ -123,7 +166,12 @@ export default function BillMakerContent() {
         buyer_address: formData.buyer_address,
         buyer_name: formData.buyer_name || null,
         buyer_gst: formData.buyer_gst || null,
-        rate: Math.round((parseFloat(formData.total_amount) / parseInt(formData.quantity)) / 1.28),
+        shipping_address: formData.is_same_address ? formData.buyer_address : formData.shipping_address,
+        shipping_name: formData.is_same_address ? formData.buyer_name : formData.shipping_name,
+        shipping_gst: formData.is_same_address ? formData.buyer_gst : formData.shipping_gst,
+        is_same_address: formData.is_same_address,
+        // Update rate calculation to use 1.18 divisor
+        rate: Math.round((parseFloat(formData.total_amount) / parseInt(formData.quantity)) / 1.18),
         taxless_amount: Math.round(taxlessAmount),
         cgst_amount: Math.round(cgst),
         sgst_amount: Math.round(sgst),
@@ -188,21 +236,40 @@ export default function BillMakerContent() {
     }
   }
 
-  const selectAddress = (address: Address): void => {
-    setFormData({
-      ...formData,
-      buyer_address: address.address,
-      buyer_name: address.name,
-      buyer_gst: address.gst_number || ''
-    })
+  const selectAddress = (address: Address, type: 'buyer' | 'shipping'): void => {
+    if (type === 'buyer') {
+      setFormData({
+        ...formData,
+        buyer_address: address.address,
+        buyer_name: address.name,
+        buyer_gst: address.gst_number || '',
+        ...(formData.is_same_address && {
+          shipping_address: address.address,
+          shipping_name: address.name,
+          shipping_gst: address.gst_number || ''
+        })
+      })
+    } else {
+      setFormData({
+        ...formData,
+        shipping_address: address.address,
+        shipping_name: address.name,
+        shipping_gst: address.gst_number || ''
+      })
+    }
     setShowAddressModal(false)
+  }
+
+  const openAddressModal = (type: 'buyer' | 'shipping'): void => {
+    setAddressType(type)
+    setShowAddressModal(true)
   }
 
   return (
     <div className="min-h-screen bg-amber-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <Link 
-          href="/" 
+      <div className="container mx-auto px-4 max-w-6xl">
+        <Link
+          href="/"
           className="inline-flex items-center text-amber-700 hover:text-amber-900 mb-6 transition-colors duration-200"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -317,29 +384,77 @@ export default function BillMakerContent() {
               </div>
             </div>
 
-            {/* Buyer Address Section */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="block text-sm font-semibold text-gray-900">
-                  Buyer Address *
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowAddressModal(true)}
-                  className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200"
-                >
-                  📖 Manage Addresses
-                </button>
+            {/* Address Section - Two Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Buyer Address */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="block text-lg font-bold text-gray-900">
+                    Buyer Address *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => openAddressModal('buyer')}
+                    className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    📖 Manage Addresses
+                  </button>
+                </div>
+                <textarea
+                  name="buyer_address"
+                  value={formData.buyer_address}
+                  onChange={handleInputChange}
+                  required
+                  rows={4}
+                  className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical"
+                  placeholder="Enter complete buyer address with name, address, city, state, and PIN code..."
+                />
               </div>
-              <textarea
-                name="buyer_address"
-                value={formData.buyer_address}
-                onChange={handleInputChange}
-                required
-                rows={4}
-                className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical"
-                placeholder="Enter complete buyer address with name, address, city, state, and PIN code..."
-              />
+
+              {/* Shipping Address */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="block text-lg font-bold text-gray-900">
+                    Shipping Address
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => openAddressModal('shipping')}
+                    className="text-sm font-semibold text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    📖 Manage Addresses
+                  </button>
+                </div>
+
+                {/* Same Address Checkbox */}
+                <div className="flex items-center space-x-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="same_address"
+                    name="is_same_address"
+                    checked={formData.is_same_address}
+                    onChange={(e) => handleSameAddressChange(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 focus:ring-2"
+                  />
+                  <label htmlFor="same_address" className="text-sm font-medium text-gray-900">
+                    Same as Buyer Address
+                  </label>
+                </div>
+
+                <textarea
+                  name="shipping_address"
+                  value={formData.shipping_address}
+                  onChange={handleInputChange}
+                  required={!formData.is_same_address}
+                  disabled={formData.is_same_address}
+                  rows={4}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical ${formData.is_same_address
+                    ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                    : 'bg-white border-amber-200'
+                    }`}
+                  placeholder={formData.is_same_address ? "Same as buyer address" : "Enter shipping address if different from buyer address..."}
+                />
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -369,10 +484,12 @@ export default function BillMakerContent() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-amber-200">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-6 py-4">
-              <h3 className="text-2xl font-bold">Address Book</h3>
-              <p className="text-amber-100">Select or add a buyer address</p>
+              <h3 className="text-2xl font-bold">
+                {addressType === 'buyer' ? 'Buyer Address Book' : 'Shipping Address Book'}
+              </h3>
+              <p className="text-amber-100">Select or add a {addressType} address</p>
             </div>
-            
+
             <div className="p-6 max-h-96 overflow-y-auto">
               {/* Saved Addresses */}
               <div className="mb-6">
@@ -382,7 +499,7 @@ export default function BillMakerContent() {
                     <div
                       key={address.id}
                       className="border-2 border-amber-200 rounded-xl p-4 cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-all duration-200 group"
-                      onClick={() => selectAddress(address)}
+                      onClick={() => selectAddress(address, addressType)}
                     >
                       <h4 className="font-bold text-gray-900 group-hover:text-amber-700">{address.name}</h4>
                       <p className="text-sm text-gray-700 mt-2">{address.address}</p>
@@ -390,7 +507,7 @@ export default function BillMakerContent() {
                         <p className="text-xs text-amber-600 mt-2 font-medium">GST: {address.gst_number}</p>
                       )}
                       <div className="mt-3 text-xs text-amber-500 font-semibold">
-                        Click to select
+                        Click to select as {addressType} address
                       </div>
                     </div>
                   )) : (
@@ -408,23 +525,23 @@ export default function BillMakerContent() {
                 <div className="space-y-4">
                   <input
                     type="text"
-                    placeholder="Buyer Name *"
+                    placeholder="Name *"
                     value={newAddress.name}
-                    onChange={(e) => setNewAddress({...newAddress, name: e.target.value})}
+                    onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900"
                   />
                   <textarea
                     placeholder="Full Address *"
                     rows={3}
                     value={newAddress.address}
-                    onChange={(e) => setNewAddress({...newAddress, address: e.target.value})}
+                    onChange={(e) => setNewAddress({ ...newAddress, address: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900 resize-vertical"
                   />
                   <input
                     type="text"
                     placeholder="GST Number (Optional)"
                     value={newAddress.gst_number}
-                    onChange={(e) => setNewAddress({...newAddress, gst_number: e.target.value})}
+                    onChange={(e) => setNewAddress({ ...newAddress, gst_number: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 text-gray-900"
                   />
                 </div>

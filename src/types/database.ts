@@ -1,11 +1,3 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
 export interface Database {
   public: {
     Tables: {
@@ -21,6 +13,10 @@ export interface Database {
           buyer_address: string
           buyer_name: string | null
           buyer_gst: string | null
+          shipping_address: string | null
+          shipping_name: string | null
+          shipping_gst: string | null
+          is_same_address: boolean
           rate: number
           taxless_amount: number
           cgst_amount: number
@@ -40,6 +36,10 @@ export interface Database {
           buyer_address: string
           buyer_name?: string | null
           buyer_gst?: string | null
+          shipping_address?: string | null
+          shipping_name?: string | null
+          shipping_gst?: string | null
+          is_same_address?: boolean
           rate?: number
           taxless_amount?: number
           cgst_amount?: number
@@ -59,6 +59,10 @@ export interface Database {
           buyer_address?: string
           buyer_name?: string | null
           buyer_gst?: string | null
+          shipping_address?: string | null
+          shipping_name?: string | null
+          shipping_gst?: string | null
+          is_same_address?: boolean
           rate?: number
           taxless_amount?: number
           cgst_amount?: number
