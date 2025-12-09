@@ -7,9 +7,15 @@ import Link from 'next/link'
 import { ArrowLeft, Save, FileText } from 'lucide-react'
 import type { BillFormData, Address, NewAddress } from '@/types'
 
-// Helper for safe floating point rounding to 2 decimals
+// Helper for standard rounding (used for Totals and Taxable)
 const roundToTwo = (num: number) => {
   return Math.round((num + Number.EPSILON) * 100) / 100
+}
+
+// Helper for floor rounding (used for Splitting Tax components)
+// This ensures 7.625 becomes 7.62, keeping CGST/SGST identical without rounding up
+const floorToTwo = (num: number) => {
+  return Math.floor((num + Number.EPSILON) * 100) / 100
 }
 
 export default function BillMakerContent() {
@@ -148,22 +154,23 @@ export default function BillMakerContent() {
         return
       }
 
-      // --- PRODUCTION GRADE CALCULATION ---
+      // --- USER REQUESTED MATH LOGIC ---
       const totalAmountInput = parseFloat(formData.total_amount)
 
-      // 1. Calculate Taxless Amount: Total / 1.18 (for 18% tax)
-      // We round this to 2 decimals immediately to match what will be stored/printed
+      // 1. Calculate Taxless Amount: Total / 1.18
       const taxless_val = roundToTwo(totalAmountInput / 1.18)
 
-      // 2. Calculate Total Tax: Total - Taxless
-      // This ensures Taxless + Tax = Total is mathematically true
+      // 2. Calculate Actual Total Tax (Difference)
+      // Example: 100 - 84.75 = 15.25
       const total_tax_val = roundToTwo(totalAmountInput - taxless_val)
 
-      // 3. Split Tax into CGST and SGST
-      // We assign half to CGST, and the remainder to SGST
-      // This handles cases where total tax is odd (e.g., 0.15 -> 0.08 + 0.07)
-      const cgst_val = roundToTwo(total_tax_val / 2)
-      const sgst_val = roundToTwo(total_tax_val - cgst_val)
+      // 3. Split logic (User Request: Force Equality, Round Down)
+      // Example: 15.25 / 2 = 7.625
+      // floorToTwo(7.625) = 7.62
+      // We set both to 7.62. This creates a 0.01 sum difference (15.24 vs 15.25)
+      // but satisfies the "Show both same" requirement.
+      const cgst_val = floorToTwo(total_tax_val / 2)
+      const sgst_val = cgst_val // Strictly equal
 
       // 4. Calculate Rate per unit
       const rate_val = roundToTwo(taxless_val / parseInt(formData.quantity))
@@ -173,7 +180,7 @@ export default function BillMakerContent() {
         billing_date: formData.billing_date,
         vehicle_number: formData.vehicle_number || null,
         quantity: parseInt(formData.quantity),
-        total_amount: roundToTwo(totalAmountInput), // Ensure 2 decimals
+        total_amount: roundToTwo(totalAmountInput),
         buyer_address: formData.buyer_address,
         buyer_name: formData.buyer_name || null,
         buyer_gst: formData.buyer_gst || null,
@@ -185,7 +192,7 @@ export default function BillMakerContent() {
         taxless_amount: taxless_val,
         cgst_amount: cgst_val,
         sgst_amount: sgst_val,
-        total_tax: total_tax_val,
+        total_tax: total_tax_val, // This stores 15.25 even if cgst+sgst is 15.24
       }
 
       let result
