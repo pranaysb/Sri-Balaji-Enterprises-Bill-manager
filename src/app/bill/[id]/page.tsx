@@ -214,12 +214,15 @@ export default function BillView() {
       <style jsx global>{`
         @media print {
           @page {
-            /* Balanced Margin: Not too small (4mm), not too big (25mm) */
-            margin: 10mm;
+            /* KEY FIX: Setting margin to 0 hides browser headers/footers (URL, Date). 
+              We add the margin back to the body below.
+            */
+            margin: 0 !important;
             size: A4;
           }
           body {
-            margin: 0;
+            /* This mimics the page margin so content isn't cut off */
+            margin: 10mm !important;
             padding: 0;
             background: white !important;
             -webkit-print-color-adjust: exact !important;
@@ -231,11 +234,11 @@ export default function BillView() {
           .bill-content {
             box-shadow: none !important;
             border: 2px solid #000 !important;
+            /* Remove extra margin on the content div since body has it now */
             margin: 0 !important;
             padding: 0 !important;
             max-width: none !important;
             background: white !important;
-            /* Restored readable font size */
             font-size: 12px !important; 
             line-height: 1.2 !important;
             border-collapse: collapse !important;
@@ -250,7 +253,6 @@ export default function BillView() {
           .address-divider {
             border-right: 1px solid #000 !important;
           }
-          /* Remove extra margins from paragraphs for tighter vertical fit */
           p { margin: 0 !important; }
         }
       `}</style>
@@ -268,13 +270,10 @@ export default function BillView() {
           </button>
         </div>
 
-        {/* Padding removed in print to save edge space */}
         <div id="bill-content" className="bill-content bg-white shadow-xl mx-auto max-w-6xl p-6 border-2 border-gray-800 print:shadow-none print:max-w-none print:p-2">
 
-          {/* Reduced bottom margin */}
           <p className="tax-invoice text-center font-bold text-lg mb-4 text-black print:text-sm print:mb-2 border-b-2 border-amber-600 pb-2 print:pb-1">TAX INVOICE</p>
 
-          {/* Reduced vertical space between sections (space-y-2 instead of 4) */}
           <div className="main space-y-4 print:space-y-2">
 
             <div className="seller border-b-2 border-gray-300 pb-4 print:pb-2 print:border-black">
@@ -282,7 +281,6 @@ export default function BillView() {
                 <div className="logo-box">
                   <img className="logo w-16 h-16 object-contain border-2 border-gray-600 print:w-12 print:h-12" src="/logo.png" alt="Sri Balaji Enterprises Logo" />
                 </div>
-                {/* Tighter leading for address lines */}
                 <div className="seller-address text-black text-sm print:text-xs leading-tight">
                   <strong className="text-black text-base print:text-sm">SRI BALAJI ENTERPRISES</strong> <br />
                   #10/60,3rd cross,3rd main, <br />
@@ -348,7 +346,6 @@ export default function BillView() {
                 <div>Amount</div>
               </div>
 
-              {/* Reduced padding in table cells */}
               <div className="grid grid-cols-8 gap-1 p-2 print:p-1 border-t border-gray-400 print:border-black text-sm text-black print:text-xs text-center print-small">
                 <div className="text-left leading-tight">
                   Cement<br />
@@ -378,7 +375,6 @@ export default function BillView() {
               </div>
             </div>
 
-            {/* Reduced padding */}
             <div className="border border-gray-400 print:border-black p-3 print:p-2">
               <div className="text-sm text-black print:text-xs">
                 <strong>Amount Chargeable in words: </strong>
@@ -444,7 +440,6 @@ export default function BillView() {
               </div>
             </div>
 
-            {/* Reduced padding */}
             <div className="border border-gray-400 print:border-black p-3 print:p-2">
               <div className="text-sm text-black print:text-xs">
                 <strong>Tax amount in words: </strong>
@@ -463,7 +458,7 @@ export default function BillView() {
               <div className="p-4 print:p-2">
                 <strong className="text-black block mb-2 text-sm print:text-xs">Company's Bank Details:</strong>
                 <div className="text-black text-sm print:text-[11px] leading-tight">
-                  <strong>Sri Balaji Enterprises</strong><br />
+                  Sri Balaji Enterprises<br />
                   BankName : AXIS BANK.<br />
                   Branch : Kathriguppe<br />
                   A/c No. :920020056606334<br />
@@ -475,12 +470,10 @@ export default function BillView() {
             <div className="grid grid-cols-2 gap-4 print:gap-2 border border-gray-400 print:border-black">
               <div className="p-4 print:p-2 text-center border-r border-gray-400 print:border-black">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">Customer's Seal and Signature</div>
-                {/* REMOVED BORDER, KEPT SPACE */}
                 <div className="h-16 print:h-10"></div>
               </div>
               <div className="p-4 print:p-2 text-center">
                 <div className="mb-2 font-semibold text-black text-sm print:text-xs">For Sri Balaji Enterprises</div>
-                {/* REMOVED BORDER, KEPT SPACE */}
                 <div className="h-16 print:h-10"></div>
                 <div className="mt-2 text-sm text-black print:text-[11px]">Authorised Signatory</div>
               </div>
